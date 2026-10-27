@@ -1,0 +1,11 @@
+# Machine specific, regenerate with tools/gen_compile_commands.py
+compile_commands.json
+
+# Build and result output
+/build/
+/obj/
+*.sarif
+/results/
+
+__pycache__/
+*.pyc

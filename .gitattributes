@@ -1,0 +1,9 @@
+# Keep every file byte-identical on every OS. Several examples depend on exact
+# line endings (a trailing backslash in a // comment, rule 5.7.3), so sources
+# must never be converted to CRLF on checkout.
+* text=auto eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf

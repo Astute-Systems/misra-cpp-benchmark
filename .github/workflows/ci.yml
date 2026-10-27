@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  corpus:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # The Windows runner ships MinGW g++; Linux and macOS use the default c++.
+      - name: Validate corpus and compile every example
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then export CXX=g++; fi
+          python tools/check_cases.py --compile -j 4
+
+      - name: Generate compile_commands.json
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then export CXX=g++; fi
+          python tools/gen_compile_commands.py
+
+      - name: Index is up to date
+        run: python tools/make_index.py --check
+
+  cmake:
+    name: CMake configure and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build
+      - run: cmake --build build -j 4
