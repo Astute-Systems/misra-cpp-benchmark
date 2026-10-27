@@ -37,6 +37,7 @@ def build_database(compiler, std, extra_args):
     for source in common.translation_units():
         arguments = [compiler, f"-std={std}", "-x", "c++", "-I", str(source.parent)]
         arguments += extra_args
+        arguments += common.compile_flags(source)
         arguments += ["-o", str(object_path(source)), "-c", str(source)]
         entries.append({
             "directory": str(common.ROOT),

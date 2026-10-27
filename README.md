@@ -169,13 +169,20 @@ Every example file name starts with `exampleN`. All files that share the same
   compiled with `-std=c++17` and warnings are expected: the violating code often
   triggers compiler warnings by nature. No example needs more than the standard
   library.
-* **Not compilable:** `cases/rule-19.1.2` closes a conditional in a different
-  file from the one that opened it, which every compiler rejects. The file is
-  tagged `NO-COMPILE:` and is left out of `compile_commands.json`; it is there
-  for tools that analyse the text of a file directly.
+* **Not compilable:** two guidelines can only be broken in code that no compiler
+  accepts. `cases/rule-19.1.2` closes a conditional in a different file from the
+  one that opened it, and the first example of `cases/rule-5.13.7` concatenates
+  string literals with two different encoding prefixes. Such files carry a
+  `NO-COMPILE:` tag, are left out of `compile_commands.json` and are not scored
+  (the benchmark lists them). They remain for tools that read a file directly.
 * **Platform dependent:** `cases/rule-5.13.6` is only a violation where `long`
   has 32 bits (Windows, or a 32-bit target), because elsewhere the literal has
-  type `long`.
+  type `long`. The file carries `REQUIRES: long-is-32-bit`; the benchmark scores
+  it only on platforms where that holds.
+* **Per-file compiler flags:** a line `// COMPILE-FLAGS: -Wno-non-pod-varargs` in
+  a source file adds those flags to its entry in `compile_commands.json`. The
+  8.2.11 examples use it because Clang refuses to pass a non-trivial class
+  through `...` unless that diagnostic is switched off.
 * **Compiler extensions:** the examples for rule 4.1.1 rely on a variable-length
   array and on designated initializers in C++17 mode. GCC and Clang accept both.
 * **Header names:** the examples for rule 19.2.3 include a file whose name

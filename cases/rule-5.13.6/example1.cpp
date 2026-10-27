@@ -3,8 +3,9 @@
 //
 // Example 1: Literal that has type long long but uses a single L (needs a 32-bit long; e.g. Windows or a 32-bit target)
 
-// NOTE: platform dependent. On LP64 targets (Linux/macOS 64-bit) this
-// literal has type long, so the rule is only violated where long is 32 bits.
+// REQUIRES: long-is-32-bit
+// On LP64 targets (Linux/macOS 64-bit) this literal has type long, so the
+// rule is only violated where long is 32 bits (Windows, 32-bit targets).
 // BEGIN violation
 long long single_l_suffix() {
     return 4294967296L;

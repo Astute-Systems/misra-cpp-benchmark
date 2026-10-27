@@ -26,6 +26,7 @@ import json
 import os
 import re
 import shlex
+import struct
 import subprocess
 import sys
 import tempfile
@@ -102,6 +103,18 @@ def norm(path):
     return os.path.normcase(str(path))
 
 
+REQUIRES_RE = re.compile(r"REQUIRES:\s*(\S+)")
+
+
+def unmet_requirement(path):
+    """Reason why an example cannot be scored on this machine, or None."""
+    for line in common.read_lines(path):
+        match = REQUIRES_RE.search(line)
+        if match and match.group(1) == "long-is-32-bit" and struct.calcsize("l") != 4:
+            return "needs a 32-bit long (this platform has a 64-bit long)"
+    return None
+
+
 def load_corpus():
     """Return (examples, file_index).
 
@@ -122,10 +135,14 @@ def load_corpus():
             example = examples.setdefault(key, {
                 "rule": rule["id"], "number": number, "category": rule["category"],
                 "description": descriptions.get(number, ""), "violation_regions": 0,
-                "compliant_regions": 0, "violation_hits": 0, "compliant_hits": 0,
+                "compliant_regions": 0, "violation_hits": 0, "compliant_hits": 0, "skip": None,
             })
             for kind, _, _ in regions:
                 example[f"{kind}_regions"] += 1
+            if common.is_no_compile(src):
+                example["skip"] = "cannot be compiled, so a compilation database cannot cover it"
+            elif unmet_requirement(src):
+                example["skip"] = unmet_requirement(src)
             file_index[norm(src.resolve())] = (rule["id"], number, regions)
     return examples, file_index
 
@@ -175,8 +192,11 @@ def summarise(examples, rules):
         info = per_rule.setdefault(rule_id, {
             "id": rule_id, "title": rule_info[rule_id]["title"], "category": ex["category"],
             "violation_examples": 0, "detected": 0, "compliant_examples": 0, "false_alarms": 0,
-            "missed_examples": [], "false_alarm_examples": [],
+            "missed_examples": [], "false_alarm_examples": [], "skipped_examples": [],
         })
+        if ex["skip"]:
+            info["skipped_examples"].append({"example": ex["number"], "reason": ex["skip"]})
+            continue
         if ex["violation_regions"]:
             info["violation_examples"] += 1
             if ex["violation_hits"]:
@@ -189,7 +209,9 @@ def summarise(examples, rules):
                 info["false_alarms"] += 1
                 info["false_alarm_examples"].append(ex["number"])
     for info in per_rule.values():
-        if info["detected"] == 0:
+        if info["violation_examples"] == 0:
+            info["status"] = "unscored"
+        elif info["detected"] == 0:
             info["status"] = "missed"
         elif info["detected"] == info["violation_examples"]:
             info["status"] = "detected"
@@ -202,6 +224,8 @@ def aggregate(per_rule, key):
     groups = defaultdict(lambda: {"rules": 0, "detected_rules": 0, "examples": 0, "detected": 0,
                                   "compliant": 0, "false_alarms": 0})
     for info in per_rule.values():
+        if info["status"] == "unscored":
+            continue
         group = groups[key(info)]
         group["rules"] += 1
         group["detected_rules"] += info["status"] == "detected"
@@ -235,12 +259,23 @@ def render_text(per_rule, reported, outside, total_findings, details):
     chapters = aggregate(per_rule, lambda i: int(i["id"].split(".")[0]))
     for chapter, group in sorted(chapters.items()):
         lines.append(format_row(f"chapter {chapter}", group))
+    unscored = sorted((i for i in per_rule.values() if i["status"] == "unscored"),
+                      key=lambda i: [int(p) for p in i["id"].split(".")])
+    skipped = [(i["id"], s["example"], s["reason"]) for i in per_rule.values() for s in i["skipped_examples"]]
+    if skipped:
+        lines.append("")
+        lines.append(f"Examples not scored on this machine: {len(skipped)}")
+        for rule_id, number, reason in sorted(skipped):
+            lines.append(f"  {rule_id} example {number}: {reason}")
+    if unscored:
+        lines.append("")
+        lines.append("Guidelines without a scorable violation example: " + ", ".join(i["id"] for i in unscored))
     if outside:
         lines.append("")
         lines.append(f"Findings for the guideline under test outside every region (not scored): "
                      f"{sum(outside.values())}")
     if details:
-        missed = [i for i in per_rule.values() if i["status"] != "detected"]
+        missed = [i for i in per_rule.values() if i["status"] not in ("detected", "unscored")]
         lines.append("")
         lines.append(f"Guidelines not fully detected: {len(missed)}")
         for info in sorted(missed, key=lambda i: [int(p) for p in i["id"].split(".")]):

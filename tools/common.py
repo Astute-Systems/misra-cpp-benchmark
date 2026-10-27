@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ END_RE = re.compile(r"^\s*//\s*END\s+(violation|compliant)\s*$")
 EXAMPLE_RE = re.compile(r"^example(\d+)(?=$|[_.])")
 DESC_RE = re.compile(r"^//\s*Example\s+(\d+):\s*(.*)$")
 NO_COMPILE_TAG = "NO-COMPILE:"
+FLAGS_RE = re.compile(r"COMPILE-FLAGS:\s*(.+?)\s*$")
 SOURCE_SUFFIXES = {".cpp", ".h"}
 
 
@@ -35,6 +37,16 @@ def case_sources(case_dir):
 
 def is_no_compile(path):
     return any(NO_COMPILE_TAG in line for line in read_lines(path))
+
+
+def compile_flags(path):
+    """Extra compiler flags requested by a `// COMPILE-FLAGS: ...` line in a source file."""
+    flags = []
+    for line in read_lines(path):
+        match = FLAGS_RE.search(line)
+        if match:
+            flags += shlex.split(match.group(1))
+    return flags
 
 
 def translation_units():

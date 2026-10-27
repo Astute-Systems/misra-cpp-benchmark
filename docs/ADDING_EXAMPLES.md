@@ -13,8 +13,12 @@
 4. **It must compile.** Warnings are fine, errors are not. If a guideline
    cannot be broken in code that compiles, add the tag `NO-COMPILE:` followed by
    the reason in a comment in the file; the file is then left out of
-   `compile_commands.json` and the CMake build. Use this only when there is no
-   alternative.
+   `compile_commands.json` and the CMake build, and the benchmark does not score
+   it. Use this only when there is no alternative. A compiler diagnostic that
+   is an error by default can be switched off for one file with
+   `// COMPILE-FLAGS: -Wno-...`. An example that is only a violation on some
+   platforms carries `// REQUIRES: long-is-32-bit` (the only requirement the
+   scorer knows today).
 5. **Keep it small.** Examples are read by people. Aim for under 30 lines.
 6. **Make the compliant version compliant for the same guideline.** It does not
    need to be perfect for the other guidelines, but it must not be an arguable

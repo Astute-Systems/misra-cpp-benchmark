@@ -57,7 +57,7 @@ def check_structure(rules):
 def compile_one(args):
     compiler, std, source = args
     command = [compiler, f"-std={std}", "-x", "c++", "-fsyntax-only",
-               "-I", str(source.parent), str(source)]
+               "-I", str(source.parent)] + common.compile_flags(source) + [str(source)]
     done = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           universal_newlines=True)
     return source, done.returncode, done.stdout
