@@ -120,3 +120,81 @@ def find_compiler(requested=None):
         if found:
             return found
     return None
+
+
+REQUIRES_RE = re.compile(r"REQUIRES:\s*(\S+)")
+MANIFEST_SCHEMA = 1
+
+
+def corpus_version():
+    version_file = ROOT / "VERSION"
+    return version_file.read_text(encoding="utf-8").strip() if version_file.exists() else "0"
+
+
+def requirements(path):
+    """Names given by `// REQUIRES: name` lines in a source file."""
+    names = []
+    for line in read_lines(path):
+        match = REQUIRES_RE.search(line)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def relative_posix(path):
+    return Path(path).resolve().relative_to(ROOT).as_posix()
+
+
+def build_manifest():
+    """Machine-readable description of every example, derived from the sources.
+
+    Paths are relative to the repository root and use forward slashes, so the
+    result can be read by tools written in any language on any platform.
+    """
+    guidelines = []
+    for rule in load_rules():
+        case = CASES / rule["directory"]
+        descriptions = example_descriptions(case)
+        examples = {}
+        for src in case_sources(case):
+            number = example_number(src)
+            if number is None:
+                continue
+            example = examples.setdefault(number, {
+                "number": number,
+                "description": descriptions.get(number, ""),
+                "files": [],
+                "regions": [],
+                "compile": True,
+                "requires": [],
+                "compile_flags": [],
+            })
+            rel = relative_posix(src)
+            no_compile = is_no_compile(src)
+            example["files"].append({"path": rel, "translation_unit": src.suffix == ".cpp" and not no_compile})
+            regions, _ = parse_regions(src)
+            for kind, first, last in regions:
+                example["regions"].append({"file": rel, "kind": kind, "first_line": first, "last_line": last})
+            if no_compile:
+                example["compile"] = False
+            for name in requirements(src):
+                if name not in example["requires"]:
+                    example["requires"].append(name)
+            for flag in compile_flags(src):
+                if flag not in example["compile_flags"]:
+                    example["compile_flags"].append(flag)
+        guidelines.append({
+            "id": rule["id"],
+            "kind": rule["kind"],
+            "category": rule["category"],
+            "title": rule["title"],
+            "directory": f"cases/{rule['directory']}",
+            "examples": [examples[n] for n in sorted(examples)],
+        })
+    return {
+        "schema": MANIFEST_SCHEMA,
+        "corpus_version": corpus_version(),
+        "standard": "MISRA C++:2023",
+        "language_standard": "c++17",
+        "guidelines": guidelines,
+    }

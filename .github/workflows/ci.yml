@@ -35,6 +35,9 @@ jobs:
       - name: Index is up to date
         run: python tools/make_index.py --check
 
+      - name: Manifest is up to date
+        run: python tools/export_manifest.py --check
+
   cmake:
     name: CMake configure and build
     runs-on: ubuntu-latest

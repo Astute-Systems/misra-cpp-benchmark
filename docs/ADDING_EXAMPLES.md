@@ -91,6 +91,7 @@ contain several regions of each kind.
 ```bash
 python3 tools/check_cases.py --compile    # every guideline covered, markers balanced, everything compiles
 python3 tools/make_index.py               # refresh docs/RULES.md
+python3 tools/export_manifest.py          # refresh manifest.json
 ```
 
 Run the checker you care about as well and look at the example from its side:
